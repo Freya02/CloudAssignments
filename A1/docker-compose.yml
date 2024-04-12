@@ -1,0 +1,19 @@
+services:
+  container1:
+   container_name: container1
+   image: freyavoraa/docker-assignment-container1:v1.0
+   ports: 
+    - "6000:6000"  # Map port 6000 on the host to port 5000 on the container
+   volumes:
+    - .:/tmp
+   depends_on:
+    - container2
+
+  container2:
+   container_name: container2
+   image: freyavoraa/docker-assignment-container2:v1.0
+   ports: 
+    - "10000:10000"  # Map port 6000 on the host to port 5000 on the container
+   volumes:
+    - .:/tmp
+

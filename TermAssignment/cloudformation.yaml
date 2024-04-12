@@ -1,0 +1,259 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CloudFormation template for creating a Virtual Public Cloud(VPC) with public and private subnets as well as an RDS instance
+
+Parameters:
+  VpcCidrBlock:
+    Description: CIDR block for the VPC
+    Type: String
+    Default: 10.0.0.0/22
+  PublicSubnet1CIDR:
+    Description: CIDR block for the first public subnet in us-east-1a
+    Type: String
+    Default: 10.0.0.0/25
+  PublicSubnet2CIDR:
+    Description: CIDR block for the second public subnet in us-east-1b
+    Type: String
+    Default: 10.0.0.128/25
+  PrivateSubnet1CIDR:
+    Description: CIDR block for the first private subnet in us-east-1a
+    Type: String
+    Default: 10.0.1.0/25
+  PrivateSubnet2CIDR:
+    Description: CIDR block for the second private subnet in us-east-1b
+    Type: String
+    Default: 10.0.1.128/25
+  PrivateSubnet3CIDR:
+    Description: CIDR block for the third private subnet in us-east-1c
+    Type: String
+    Default: 10.0.2.0/25
+
+Resources:
+  MyVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidrBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+
+  MyInternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  MyVPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref MyVPC
+      InternetGatewayId: !Ref MyInternetGateway
+
+  MyPublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC
+
+  MyInternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: MyVPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref MyPublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref MyInternetGateway
+
+  MyPublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: !Ref PublicSubnet1CIDR
+      AvailabilityZone: us-east-1a
+
+  MyPublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: !Ref PublicSubnet2CIDR
+      AvailabilityZone: us-east-1b
+
+  MyPrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: !Ref PrivateSubnet1CIDR
+      AvailabilityZone: us-east-1a
+
+  MyPrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: !Ref PrivateSubnet2CIDR
+      AvailabilityZone: us-east-1b
+
+  MyPrivateSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: !Ref PrivateSubnet3CIDR
+      AvailabilityZone: us-east-1c
+
+  MyPublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref MyPublicSubnet1
+      RouteTableId: !Ref MyPublicRouteTable
+
+  MyPublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref MyPublicSubnet2
+      RouteTableId: !Ref MyPublicRouteTable
+
+  MyDBSubnetGroup:
+    Type: "AWS::RDS::DBSubnetGroup"
+    Properties:
+      DBSubnetGroupDescription: "Subnet group for RDS instance"
+      SubnetIds:
+        - !Ref MyPrivateSubnet1
+        - !Ref MyPrivateSubnet2
+        - !Ref MyPrivateSubnet3
+
+  MyRDSSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "RDS Security Group"
+      VpcId: !Ref MyVPC
+
+  MyRDSSecurityGroupIngress:
+    Type: "AWS::EC2::SecurityGroupIngress"
+    Properties:
+      GroupId: !Ref MyRDSSecurityGroup
+      IpProtocol: tcp
+      FromPort: "3306"
+      ToPort: "3306"
+      SourceSecurityGroupId: !Ref MyEC2SecurityGroup
+
+  MyRDSDatabase:
+    Type: "AWS::RDS::DBInstance"
+    Properties:
+      Engine: "mysql"
+      DBInstanceClass: "db.t3.micro"
+      DBName: "database1"
+      MasterUsername: "admin"
+      MasterUserPassword: "freyavora"
+      AllocatedStorage: "20"
+      DBSubnetGroupName: !Ref MyDBSubnetGroup
+      VPCSecurityGroups:
+        - !Ref MyEC2SecurityGroup
+
+  MyEC2SecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "EC2 Security Group"
+      VpcId: !Ref MyVPC
+
+  MyEC2SecurityGroupIngressSSH:
+    Type: "AWS::EC2::SecurityGroupIngress"
+    Properties:
+      GroupId: !Ref MyEC2SecurityGroup
+      IpProtocol: tcp
+      FromPort: "22"
+      ToPort: "22"
+      CidrIp: "0.0.0.0/0"
+
+  MyEC2SecurityGroupIngressHTTP:
+    Type: "AWS::EC2::SecurityGroupIngress"
+    Properties:
+      GroupId: !Ref MyEC2SecurityGroup
+      IpProtocol: tcp
+      FromPort: "80"
+      ToPort: "80"
+      CidrIp: "0.0.0.0/0"
+
+  MyEC2SecurityGroupIngressHTTPS:
+    Type: "AWS::EC2::SecurityGroupIngress"
+    Properties:
+      GroupId: !Ref MyEC2SecurityGroup
+      IpProtocol: tcp
+      FromPort: "443"
+      ToPort: "443"
+      CidrIp: "0.0.0.0/0"
+
+  MyPublicInstance1:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: "ami-051f8a213df8bc089"
+      KeyName: "my-aws-key-pair"
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: "0"
+          GroupSet:
+            - !Ref MyEC2SecurityGroup
+          SubnetId: !Ref MyPublicSubnet1
+
+  MyPublicInstance2:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: "ami-051f8a213df8bc089"
+      KeyName: "my-aws-key-pair"
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: "0"
+          GroupSet:
+            - !Ref MyEC2SecurityGroup
+          SubnetId: !Ref MyPublicSubnet2
+
+  MyALBSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Applicaton load balancer Security Group"
+      VpcId: !Ref MyVPC
+
+  MyALBSecurityGroupIngressHTTP:
+    Type: "AWS::EC2::SecurityGroupIngress"
+    Properties:
+      GroupId: !Ref MyALBSecurityGroup
+      IpProtocol: tcp
+      FromPort: "80"
+      ToPort: "80"
+      CidrIp: "0.0.0.0/0"
+
+  MyALBSecurityGroupIngressHTTPS:
+    Type: "AWS::EC2::SecurityGroupIngress"
+    Properties:
+      GroupId: !Ref MyALBSecurityGroup
+      IpProtocol: tcp
+      FromPort: "443"
+      ToPort: "443"
+      CidrIp: "0.0.0.0/0"
+
+  MyEC2TargetGroup:
+    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+    Properties:
+      Name: "EC2TargetGroup"
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref MyVPC
+
+  MyALBListener:
+    Type: "AWS::ElasticLoadBalancingV2::Listener"
+    Properties:
+      DefaultActions:
+        - Type: "forward"
+          TargetGroupArn: !Ref MyEC2TargetGroup
+      LoadBalancerArn: !Ref MyApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+  MyApplicationLoadBalancer:
+    Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
+    Properties:
+      Name: "MyApplicationLoadBalancer"
+      Subnets:
+        - !Ref MyPublicSubnet1
+        - !Ref MyPublicSubnet2
+      SecurityGroups:
+        - !Ref MyALBSecurityGroup
+      Scheme: internet-facing
+      Type: application
+  
+  
+
+  

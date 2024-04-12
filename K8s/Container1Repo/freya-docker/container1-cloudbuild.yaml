@@ -1,0 +1,26 @@
+steps:
+# step to build Docker image 
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'us-central1-docker.pkg.dev/cloud-k8-assignment/kubernetes-artifact-registry/freya-docker-1:$SHORT_SHA', './freya-docker']
+
+# step to push Docker image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-central1-docker.pkg.dev/cloud-k8-assignment/kubernetes-artifact-registry/freya-docker-1:$SHORT_SHA']
+
+# step to setup persistent storage
+  - name: 'gcr.io/cloud-builders/kubectl'
+    args: ['apply', '-f', 'freya-docker/persistentvolumeclaim.yaml']
+    env:
+    - 'CLOUDSDK_COMPUTE_REGION=us-central1'
+    - 'CLOUDSDK_COMPUTE_ZONE=us-central1-c'
+    - 'CLOUDSDK_CONTAINER_CLUSTER=kubernetes-cluster'
+
+  - name: 'gcr.io/cloud-builders/gke-deploy'
+    args:
+    - run
+    - --filename=freya-docker/container1-deploy.yaml
+    - --image=us-central1-docker.pkg.dev/cloud-k8-assignment/kubernetes-artifact-registry/freya-docker-1:$SHORT_SHA
+    - --location=us-central1
+    - --cluster=kubernetes-cluster
+
+images: ['us-central1-docker.pkg.dev/cloud-k8-assignment/kubernetes-artifact-registry/freya-docker-1:$SHORT_SHA']

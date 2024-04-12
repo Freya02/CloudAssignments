@@ -1,0 +1,47 @@
+{
+  "Comment": "Hash Functions",
+  "StartAt": "SelectedAction",
+  "States": {
+    "SelectedAction": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.action",
+          "StringEquals": "sha256",
+          "Next": "InvokeSha256"
+        },
+        {
+          "Variable": "$.action",
+          "StringEquals": "md5",
+          "Next": "InvokeMd5"
+        },
+        {
+          "Variable": "$.action",
+          "StringEquals": "bcrypt",
+          "Next": "InvokeBcrypt"
+        }
+      ],
+      "Default": "UnsupportedAction"
+    },
+    "InvokeSha256": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-1:654654570983:function:Sha256",
+      "End": true
+    },
+    "InvokeMd5": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-1:654654570983:function:Md5",
+      "End": true
+    },
+    "InvokeBcrypt": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-1:654654570983:function:Bycrypt",
+      "End": true
+    },
+    "UnsupportedAction": {
+      "Type": "Fail",
+      "Cause": "Unsupported action provided in input",
+      "Error": "UnsupportedActionError"
+    }
+  }
+}
